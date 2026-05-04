@@ -93,6 +93,4 @@ pip install torch torchvision torchaudio
 pip install numpy h5py scikit-learn matplotlib tensorboard
 python runner.py
 ---
-```markdown
-
 
