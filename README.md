@@ -6,7 +6,6 @@ Benchmark code for the paper:
 > Submitted to IMWUT 2026
 
 This repository contains the training and evaluation code for all experiments reported in the paper.  
-The dataset (landmarks + videos) is hosted on HuggingFace: https://huggingface.co/datasets/ISL500/ISL-DATA/tree/main
 
 ---
 
@@ -17,8 +16,6 @@ ISL-Connect contains **86,978 videos** of **500 ISL words** collected from **15 
 Landmarks are provided in two formats:
 - **MediaPipe** — `.h5` files, shape `(T, 2, 21, 3)` — used by the PopSign pipeline
 - **MMPose** — `.npy` files, shape `(T, 133, 3)` — used by the MASA pipeline
-
-Download the landmark files from HuggingFace and set `DATA_ROOT` in each script to point to your local copy.
 
 ---
 
@@ -78,13 +75,6 @@ ISL_ML_Models/
 ## How to Run
 
 ### 1. Download the landmarks
-
-```bash
-# Download from HuggingFace:
-# https://huggingface.co/datasets/ISL500/ISL-DATA/tree/main
-# You need: Landmarks/MediaPipe/ for PopSign, Landmarks/Pose/ for MASA
-```
-
 The expected local folder structure after download:
 
 ```
@@ -104,8 +94,6 @@ At the top of each master script, update the two path variables to point to your
 POPSIGN_DATA_ROOT = "ISL-DATA/Landmarks/MediaPipe"   # .h5 files
 MASA_DATA_ROOT    = "ISL-DATA/Landmarks/Pose"         # .npy files
 ```
-
-These are already set to match the HuggingFace folder structure exactly, so if you download to the same directory as the repo, no changes are needed.
 
 ### 3. Install dependencies
 
@@ -133,7 +121,7 @@ Results are saved to a `results/` folder including:
 
 ---
 
-## Experiments and Reported Results
+## Experiments
 
 ### Experiment 1 — Generalization Across Signers
 **Paper reference**: Table 3, Section 7.3.1
@@ -141,34 +129,16 @@ Results are saved to a `results/` folder including:
 This experiment evaluates how well models generalize across different signers, under two settings:
 
 #### 1a — Signer-Independent Recognition (LOSO, 30 fps)
-**Protocol**: 15-fold Leave-One-Signer-Out cross-validation. Each fold trains on 14 signers and tests on the held-out signer. Results are averaged across all 15 folds.
-
-| Model | Top-1 Acc | Top-5 Acc | Macro F1 | Weighted F1 |
-|---|---|---|---|---|
-| PopSign (MediaPipe) | **90.53% ± 3.36%** | 98.10% ± 1.31% | 89.66% ± 3.76% | 89.80% ± 3.66% |
-| MASA (MMPose) | **86.63% ± 3.84%** | 97.16% ± 1.74% | 85.73% ± 4.23% | 85.88% ± 4.14% |
+**Protocol**: 15-fold Leave-One-Signer-Out cross-validation. Each fold trains on 14 signers and tests on the held-out signer. 
 
 ```bash
 python exp1a_generalization_loso.py
 ```
 
 #### 1b — Signer-Dependent Recognition (Person-Dependent, 80-20 split)
-**Protocol**: Stratified 5-fold cross-validation with 80/20 train/test split grouped by signer. Reported as an upper-bound reference to quantify the signer-independent generalization gap.
+**Protocol**: Grouped 5-fold cross-validation with 80/20 train/test split grouped by signer. Reported as an upper-bound reference to quantify the signer-independent generalization gap.
 
 **Split details**: This uses a **GroupKFold** approach where recording sessions are the groups. All 15 signers (USER001–USER015) appear in both train and test in every fold, but no individual session appears in more than one fold's test set — confirmed zero overlap across all fold pairs. The model sees each signer during training but is always tested on held-out sessions it has never trained on. The exact file-level splits used in the paper are provided in `splits/fold_splits.json`:
-
-| Fold | Train files | Test files |
-|---|---|---|
-| fold_0 | 66,431 | 20,329 |
-| fold_1 | 67,782 | 18,978 |
-| fold_2 | 69,504 | 17,256 |
-| fold_3 | 70,938 | 15,822 |
-| fold_4 | 72,385 | 14,375 |
-
-| Model | Top-1 Acc | Top-5 Acc | Macro F1 | Weighted F1 |
-|---|---|---|---|---|
-| PopSign (MediaPipe) | **95.09%** | 99.50% | 94.96% | 95.03% |
-| MASA (MMPose) | **93.16%** | 99.16% | 93.09% | 93.16% |
 
 ```bash
 python exp1b_generalization_person_dependent.py
@@ -180,11 +150,6 @@ python exp1b_generalization_person_dependent.py
 **Paper reference**: Section 7.3.4  
 **Protocol**: Same LOSO setup as Experiment 1a, but landmarks are sub-sampled to 5 fps. Quantifies performance degradation under mobile deployment constraints where high frame rate processing is not feasible.
 
-| Model | Top-1 Acc | Top-5 Acc | Macro F1 | Weighted F1 |
-|---|---|---|---|---|
-| PopSign (MediaPipe) | **86.97%** | 97.07% | 85.80% | 86.02% |
-| MASA (MMPose) | **70.31%** | 90.58% | 68.77% | 68.94% |
-
 ```bash
 python exp2_framerate_reduction.py
 ```
@@ -193,14 +158,9 @@ python exp2_framerate_reduction.py
 
 ### Experiment 3 — Impact of Vocabulary Size
 **Paper reference**: Section 7.3.3  
-**Protocol**: Under LOSO, partition the 489-word vocabulary into 5 disjoint subsets of ~100 words each. Repeated 5 times with different random partitions. Reports mean ± std across partitions and rounds.
+**Protocol**: Under LOSO, partition the 489-word vocabulary into 5 disjoint subsets of ~100 words each. Repeated 5 times with different random partitions.
 
 **Split details**: The exact word assignments used in the paper are provided in `splits/round_0_buckets.csv` through `splits/round_4_buckets.csv`. Each file contains 5 buckets (bucket_0–bucket_4) of 97–98 words. Bucket_4 always has 97 words (489 is not evenly divisible by 5); all others have 98. To reproduce the exact reported numbers, load these CSVs in the experiment scripts rather than re-randomizing the partitions.
-
-| Model | Top-1 Acc (100 words) | vs. Full 489 words |
-|---|---|---|
-| PopSign (MediaPipe) | **94.97% ± 0.12%** | +4.44% over full vocab |
-| MASA (MMPose) | **92.07% ± 0.16%** | +5.44% over full vocab |
 
 ```bash
 python exp3_vocabulary_size.py
@@ -211,16 +171,6 @@ python exp3_vocabulary_size.py
 ### Experiment 4 — Impact of Training Data Availability
 **Paper reference**: Section 7.3.2, Figure 6  
 **Protocol**: Under LOSO, progressively cap the number of training videos per word per signer (n = 10 down to n = 1). Output is a performance curve (Top-1 and Top-5 vs. number of training videos).
-
-| Training videos/word (approx) | PopSign Top-1 | MASA Top-1 |
-|---|---|---|
-| ~134 (n=10) | 89.85% | 85.57% |
-| ~98 (n=7) | 88.95% | 81.73% |
-| ~70 (n=5) | 88.16% | 77.45% |
-| ~28 (n=2) | 82.84% | — |
-| ~14 (n=1) | 74.35% | — |
-
-Performance elbow is at n=3 (~42 videos/word) for both pipelines. Below this point, performance drops sharply.
 
 ```bash
 python exp4_training_data_reduction.py
